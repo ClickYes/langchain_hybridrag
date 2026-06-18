@@ -1,0 +1,23 @@
+# LangChain 
+langchain-chroma
+langchain-openai
+langchain-neo4j
+langchain-core
+langchain-community
+langchain-text-splitters
+langchain-huggingface
+
+# Neo4j
+neo4j==6.2.0
+
+# OpenAI
+openai==2.41.1
+
+# Embeddings
+sentence-transformers==5.5.1
+transformers==5.12.0
+
+# Other
+python-dotenv==1.2.2
+pydantic==2.13.4
+chromadb
