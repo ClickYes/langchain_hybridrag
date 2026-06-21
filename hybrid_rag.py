@@ -39,7 +39,7 @@ def create_index():
     print("[!] 全文索引处理完成")
 
 
-#create_index()
+create_index()
 #创建向量索引
 def create_vector_index():
     for label in node_labels:
@@ -62,7 +62,7 @@ def create_vector_index():
         neo4j_graph.query(cypher)
         print(f"[!] 向量索引处理完成：{index_name}")
     
-#create_vector_index()
+create_vector_index()
 
 
 
