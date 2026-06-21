@@ -10,6 +10,8 @@ load_dotenv()
 
 from schema import NodeTypes_Description,RelationTypes_Description,Graph
 
+
+#向量数据库
 _embeddings=None
 
 def init_embeddings():
@@ -39,10 +41,13 @@ def extract_to_vectorstore(doc:Document)->None:
 
 
 
+#图数据库
 
 def init_neo4j()->Neo4jGraph:
     return Neo4jGraph()
 
+
+#提取三元组
 def build_nodetype()->str:
     lines=[]
     for typename,desc in NodeTypes_Description.items():
@@ -55,6 +60,8 @@ def build_relattype()->str:
         lines.append(f"-{reltype}：{desc}-")
     return "\n".join(lines)
 
+
+#抽取三元组提示词
 SYSTEM_PROMPT=f"""
 你是一个水利知识图谱抽取助手，你的任务是从文本中抽取符合schema设计的节点和关系。
 抽取时必须严格遵守提供的节点类型及关系类型边界。
@@ -62,7 +69,9 @@ SYSTEM_PROMPT=f"""
 节点的type字段必须从允许的节点类型中选择。
 实体名要归一化，去除冗余修饰，同一实体使用同一名称。
 不要编造文本中未出现的内容。
+实体抽取需完整，符合提供的节点类型的实体应该积极抽取。
 关系抽取需完整，积极抽取实体之间的关系。
+复合命名实体里的独立实体也应被抽取出来（如复合实体“甘肃水库”，因为节点类型里有地点类型，所以还应该抽取出“甘肃”节点，并识别出“甘肃”节点与“甘肃水库”节点的关系，水系等其他可能出现在复合实体名字里的类型也一样）。
 若某段文本内容与schema设计和水利知识无关，不必返回节点和关系。
 节点必须与节点类型语义匹配，如：不能把“xx公司”或其他非水利技术实体作为“Technology”节点。
 强烈建议为每个节点和关系添加description字段,但不能编造文本中未出现的内容。
@@ -75,7 +84,7 @@ SYSTEM_PROMPT=f"""
 
 def build_llm():
     return ChatOpenAI(
-        temperature=0.7,
+        temperature=0,
         model="deepseek-v4-flash",
         extra_body={"enable_thinking":False},
         )
@@ -98,13 +107,47 @@ def extract_kg(text:str)->Graph:
     return _extractor.invoke({"text":text})
 
 
+#建立节点向量嵌入图
+def node_to_embedding(node):
+    #type_str=NodeTypes_Description.get(node.type)
+    
+    
+
+    desc=node.description or ""
+    if node.aliases and node.aliases!=[""]:
+        aliases="、 ".join(node.aliases)
+        text=(
+            f"{node.name}，别名又叫{aliases}，{desc}"
+        )
+    else:
+        text=(
+            f"{node.name}，{desc}"
+        )
+
+
+
+
+    embedding=init_embeddings().embed_query(text)
+    return embedding
+
+
+
+
+
+
+
+
+
+
+#写入图数据库
 def write_kg(graph:Graph,neo4j_graph:Neo4jGraph):
     for node in graph.nodes:
+        embedding=node_to_embedding(node)
         cypher=f"""
         MERGE (n:{node.type}{{name:$name}})
-        SET n.description=$description,n.aliases=$aliases
+        SET n.description=$description,n.aliases=$aliases,n.embedding=$embedding
         """
-        params={"name":node.name,"description":node.description,"aliases":node.aliases}
+        params={"name":node.name,"description":node.description,"aliases":node.aliases,"embedding":embedding}       
         neo4j_graph.query(cypher,params)
     for rel in graph.relationships:
         cypher=f"""

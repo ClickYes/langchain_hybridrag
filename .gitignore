@@ -5,6 +5,10 @@ __pycache__/
 *.pyd
 *.spec
 
+
+# Jupyter Notebook 缓存
+.ipynb_checkpoints/
+
 # 环境变量
 .env
 
@@ -31,3 +35,5 @@ embedding.py
 temp.py
 temp.ipynb
 rag_main.ipynb
+prompt_t.txt
+

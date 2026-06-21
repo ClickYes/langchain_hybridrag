@@ -56,19 +56,19 @@ NodeTypes_Description={
     }
 
 RelationTypes_Description={
-    "LOCATED_IN":"位于某地",
-    "ON_RIVER":"建在某条河上",
-    "PART_OF":"子工程属于母工程",
-    "HAS_FUNCTION":"工程的功能",
-    "HAS_EQUIPMENT":"工程的设备",
-    "USES_TECH":"工程使用的技术",
-    "SUPPLIES":"向某地供水/供电",
-    "PROTECTS":"保护某地",
+    "LOCATED_IN":"位于某地（项目等为起点，省份城市等地点为终点）",
+    "ON_RIVER":"建在某条河上（项目为起点，水系为终点）",
+    "PART_OF":"子工程属于母工程（子项目为起点，母项目为终点）（通常隐含子工程的地点与水系与母工程相同）",
+    "HAS_FUNCTION":"工程的功能（项目等为起点，功能为终点）",
+    "HAS_EQUIPMENT":"工程的设备（项目等为起点，设备为终点）",
+    "USES_TECH":"工程使用的技术（项目等为起点，技术为终点）",
+    "SUPPLIES":"向某地供水/供电（项目等为起点，地点为终点）",
+    "PROTECTS":"保护某地（项目等为起点，地点为终点）",
     "JOINT_DISPATCH":"联合调度",
-    "FLOWS_THROUGH":"水系流经某地",
-    "TRIBUTARY_OF":"支流",
-    "MANAGES":"管理",
-    "OPERATES":"运营",
+    "FLOWS_THROUGH":"水系流经某地（水系为起点，地点为终点）",
+    "TRIBUTARY_OF":"支流（子水系为起点，母水系为终点）",
+    "MANAGES":"管理/负责（机构为起点，项目为终点）",
+    "OPERATES":"运营（机构为起点，项目为终点）",
     "SUBORDINATE_TO":"隶属",
     }
 
