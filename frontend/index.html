@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>RAG 问答 Demo</title>
+</head>
+<body>
+  <h1>RAG 问答 Demo</h1>
+
+  <input id="questionInput" type="text" placeholder="请输入你的问题" style="width: 300px;">
+  <button onclick="sendQuestion()">发送</button>
+
+  <h3>回答：</h3>
+  <div id="answerBox"></div>
+
+  <script>
+    async function sendQuestion() {
+      const input = document.getElementById("questionInput");
+      const answerBox = document.getElementById("answerBox");
+
+      const question = input.value;
+
+      const response = await fetch("http://127.0.0.1:5000/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          question: question
+        })
+      });
+
+      const data = await response.json();
+
+      answerBox.innerText = data.answer;
+    }
+  </script>
+</body>
+</html>

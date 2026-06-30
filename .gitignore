@@ -20,8 +20,10 @@ chroma_db/
 
 # VS Code / IDE
 .vscode/
+.claude/
+.idea/
 
-# 与rag_main.py运行无关的文件
+# 与项目运行无关的文件
 RAGe.py
 emrag.py
 kwrag.py
@@ -35,5 +37,11 @@ embedding.py
 temp.py
 temp.ipynb
 rag_main.ipynb
+rag_main.py
 prompt_t.txt
+
+# Node / 前端构建产物
+frontend/**/node_modules/
+frontend/**/dist/
+frontend/**/dist-ssr/
 

@@ -1,74 +1,75 @@
 from pydantic import BaseModel, Field
-from typing import List,Literal,Optional
+from typing import List, Literal, Optional
 
-NodeTypes=Literal[
-    "HydraulicProject",#水利项目
-    "WaterSystem",#水系/流域    
-    "Location",#地点
-    "Organization", #机构
-    "Technology", #水利技术
-    "Equipment", #设备设施
-    "Function" #功能
-    ]
+# ===== 节点类型 =====
+NodeTypes = Literal[
+    "Project",       # 水利工程项目
+    "WaterSystem",   # 自然水系/流域
+    "Location",      # 行政地点
+    "Organization",  # 机构
+    "Technology",    # 技术
+    "Function",      # 功能
+]
 
+# ===== 关系类型 =====
 RelationType = Literal[
-    "LOCATED_IN",       # HydraulicProject -> Location（位于某地）
-    "ON_RIVER",         # HydraulicProject -> WaterSystem（建在某条河上）
-    "PART_OF",          # HydraulicProject -> HydraulicProject（子工程属于母工程）
-    "HAS_FUNCTION",     # HydraulicProject -> Function（工程的功能）
-    "HAS_EQUIPMENT",    # HydraulicProject -> Equipment（工程的设备）
-    "USES_TECH",        # HydraulicProject -> Technology（工程使用的技术）
-    "SUPPLIES",         # HydraulicProject -> Location（向某地供水/供电）
-    "PROTECTS",         # HydraulicProject -> Location（保护某地）
-    "JOINT_DISPATCH",   # HydraulicProject -> HydraulicProject（联合调度）
-    "FLOWS_THROUGH",    # WaterSystem -> Location（水系流经某地）
+    "LOCATED_IN",       # Project/WaterSystem -> Location（位于）
+    "ON_RIVER",         # Project -> WaterSystem（建在某河上）
+    "FLOWS_THROUGH",    # WaterSystem -> Location（流经）
     "TRIBUTARY_OF",     # WaterSystem -> WaterSystem（支流）
-    "MANAGES",          # Organization -> HydraulicProject（管理）
-    "OPERATES",         # Organization -> HydraulicProject（运营）
+    "PART_OF",          # Project -> Project（子工程属于母工程）
+    "HAS_FUNCTION",     # Project -> Function
+    "USES_TECH",        # Project -> Technology
+    "MANAGES",          # Organization -> Project（管理/运营）
     "SUBORDINATE_TO",   # Organization -> Organization（隶属）
+    "SUPPLIES",         # Project -> Location（供水/供电）
+    "PROTECTS",         # Project -> Location（防洪保护）
+    "JOINT_DISPATCH",   # Project -> Project（联合调度）
 ]
 
 
 class Node(BaseModel):
-    type:NodeTypes=Field(description="节点类型（归一化）")
-    name:str=Field(description="节点名称")
-    aliases:Optional[List[str]]=Field(default_factory=list,description="节点别名")
-    description:Optional[str]=Field(default=None,description="节点描述")
+    type: NodeTypes = Field(description="节点类型（归一化）")
+    name: str = Field(description="节点名称")
+    aliases: Optional[List[str]] = Field(default_factory=list, description="节点别名")
+    description: Optional[str] = Field(default=None, description="节点描述")
+
 
 class Relationship(BaseModel):
-    type:RelationType=Field(description="关系类型")
-    source:str=Field(description="关系源节点")
-    target:str=Field(description="关系目标节点")
-    description:Optional[str]=Field(default=None,description="关系描述")
+    type: RelationType = Field(description="关系类型")
+    source: str = Field(description="关系源节点")
+    target: str = Field(description="关系目标节点")
+    description: Optional[str] = Field(default=None, description="关系描述")
+
 
 class Graph(BaseModel):
-    nodes:List[Node]=Field(default_factory=list,description="节点列表")
-    relationships:List[Relationship]=Field(default_factory=list,description="关系列表")
+    nodes: List[Node] = Field(default_factory=list, description="节点列表")
+    relationships: List[Relationship] = Field(default_factory=list, description="关系列表")
 
-NodeTypes_Description={
-    "HydraulicProject":"水利项目",
-    "WaterSystem":"水系/流域",
-    "Location":"地点",
-    "Organization":"机构",
-    "Technology":"水利技术",
-    "Equipment":"设备设施",
-    "Function":"功能",
-    }
 
-RelationTypes_Description={
-    "LOCATED_IN":"位于某地（项目等为起点，省份城市等地点为终点）",
-    "ON_RIVER":"建在某条河上（项目为起点，水系为终点）",
-    "PART_OF":"子工程属于母工程（子项目为起点，母项目为终点）（通常隐含子工程的地点与水系与母工程相同）",
-    "HAS_FUNCTION":"工程的功能（项目等为起点，功能为终点）",
-    "HAS_EQUIPMENT":"工程的设备（项目等为起点，设备为终点）",
-    "USES_TECH":"工程使用的技术（项目等为起点，技术为终点）",
-    "SUPPLIES":"向某地供水/供电（项目等为起点，地点为终点）",
-    "PROTECTS":"保护某地（项目等为起点，地点为终点）",
-    "JOINT_DISPATCH":"联合调度",
-    "FLOWS_THROUGH":"水系流经某地（水系为起点，地点为终点）",
-    "TRIBUTARY_OF":"支流（子水系为起点，母水系为终点）",
-    "MANAGES":"管理/负责（机构为起点，项目为终点）",
-    "OPERATES":"运营（机构为起点，项目为终点）",
-    "SUBORDINATE_TO":"隶属",
-    }
+# ===== 节点类型说明（精简版）=====
+NodeTypes_Description = {
+    "Project":      "水利工程项目（含水库、枢纽、电站、调水/防洪工程等人工建设）。例：三峡工程、小浪底、南水北调中线",
+    "WaterSystem":  "天然水系（河、湖、流域）。例：长江、淮河、黄河流域。⚠️人工水库归 Project",
+    "Location":     "行政地点（省/市/县/区）。例：湖北省、宜昌市、华北平原",
+    "Organization": "机构（部委、委员会、公司）。例：水利部、长江水利委员会、三峡集团",
+    "Technology":   "技术/方法/工艺（无形）。例：碾压混凝土坝、灌浆技术。⚠️实物装置不在此",
+    "Function":     "功能/作用（做什么）。例：防洪、发电、灌溉、供水。⚠️'发电'是Function，'水电技术'是Technology",
+}
 
+
+# ===== 关系类型说明（精简版）=====
+RelationTypes_Description = {
+    "LOCATED_IN":      "位于（Project/WaterSystem → Location）",
+    "ON_RIVER":        "建在某河上（Project → WaterSystem）",
+    "FLOWS_THROUGH":   "流经（WaterSystem → Location）",
+    "TRIBUTARY_OF":    "支流（子水系 → 母水系）",
+    "PART_OF":         "子工程隶属（子Project → 母Project）（通常子母工程的管理机构关系是一致的）",
+    "HAS_FUNCTION":    "功能（Project → Function）",
+    "USES_TECH":       "使用技术（Project → Technology）",
+    "MANAGES":         "管理/运营（Organization → Project）",
+    "SUBORDINATE_TO":  "机构隶属（下级Org → 上级Org）",
+    "SUPPLIES":        "供水/供电（Project → Location）",
+    "PROTECTS":        "保护（Project → Location）",
+    "JOINT_DISPATCH":  "联合调度（Project ↔ Project）",
+}

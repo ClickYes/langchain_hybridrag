@@ -1,11 +1,14 @@
-# LangChain 
-langchain-chroma
-langchain-openai
-langchain-neo4j
-langchain-core
-langchain-community
-langchain-text-splitters
-langchain-huggingface
+# LangChain
+langchain-chroma==1.1.0
+langchain-openai==1.3.2
+langchain-neo4j==0.10.0
+langchain-core==1.4.7
+langchain-community==0.4.2
+langchain-text-splitters==1.1.2
+langchain-huggingface==1.2.2
+
+# LangGraph (agent.py)
+langgraph==1.2.5
 
 # Neo4j
 neo4j==6.2.0
@@ -17,7 +20,16 @@ openai==2.41.1
 sentence-transformers==5.5.1
 transformers==5.12.0
 
-# Other
+# 向量数据库
+chromadb==1.5.9
+
+# 模型下载
+modelscope==1.37.1
+
+# Web 后端 (backend/app.py)
+flask==3.1.3
+flask-cors==6.0.5
+
+# 其他
 python-dotenv==1.2.2
 pydantic==2.13.4
-chromadb

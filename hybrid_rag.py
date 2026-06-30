@@ -13,7 +13,7 @@ load_dotenv()
 import json
 
 from schema import NodeTypes_Description, RelationTypes_Description
-from extractor import init_vectorstore,init_neo4j,init_embeddings,build_nodetype,build_relattype
+from extractor import init_vectorstore,init_neo4j,init_embeddings,build_nodetype,build_relattype,ensure_neo4j_indexes
 
 
 llm=ChatOpenAI(
@@ -39,7 +39,7 @@ def create_index():
     print("[!] 全文索引处理完成")
 
 
-create_index()
+#create_index()
 #创建向量索引
 def create_vector_index():
     for label in node_labels:
@@ -62,7 +62,7 @@ def create_vector_index():
         neo4j_graph.query(cypher)
         print(f"[!] 向量索引处理完成：{index_name}")
     
-create_vector_index()
+#create_vector_index()
 
 
 
@@ -123,7 +123,7 @@ def node_recall_fulltext(query:str,score:float=0.5,top_k:int=20):
 #         return ""
     return "\n".join(nodes) + "\n"
 #向量检索
-vector_retriever=vectorstore.as_retriever(search_kwargs={"k":8})
+vector_retriever=vectorstore.as_retriever(search_kwargs={"k":5})
 
 embeddings=init_embeddings()
 #向量召回候选节点
@@ -171,37 +171,26 @@ def graph_cypher(query):
     full_text=node_recall_fulltext(query)
     
     prompt=f"""
-        你是一个Neo4j数据库的查询助手，根据用户的问题、图谱的schema边界和节点检索返回的候选节点，生成对应的Cypher查询语句。
-        图谱中仅有边界的节点类型和关系类型，不包含其他的类型
-        拿到用户问题后，先将其梳理为查询逻辑链，再根据逻辑链生成Cypher查询语句。
-        节点检索返回的是图谱中真实存在的可能与问题匹配的节点，可以作为Cypher查询语句生成的优先参考，但要保证它们真的与问题相关。
+        你是一个简单问题的Cypher查询语句生成器，根据简单问题生成对应的单跳Cypher查询语句。
         【重要约束】
-        一、确保生成的MATCH语句与用户的问题相关，MATCH中一个模式只能有一个三元组，多个模式之间用逗号隔开，通过共享变量连接。
-        二、结合图谱的schema边界进行类型判断，绝对禁止混淆节点类型，
-        尤其是节点类型里的“地点“和”水系“、”项目”和“技术”等易混淆类型绝对禁止混淆。
-        三、你的输出结果会被直接作为Cypher查询语句执行，所以确保你的输出只有干净的Cypher查询语句，不存在其他字符。
-        四、不允许编造不在schema中的节点类型或关系类型。
-        五、生成的Cypher语句每个关系都要有向，并且严格按照图谱schema里说明的方向，确保起点和终点的类型是正确的，关系都需要有关系变量名，绝对禁止关系括号里不写关系变量名。
-        六、结合图谱的schema边界，仔细判断用户问题需要进行多少跳查询，禁止查询无用的信息。
-        七、【关键】先梳理清楚回答问题所需的完整逻辑链，再生成Cypher。逻辑链上没有的关系，一律不准出现在MATCH中。任何节点（无论是锚点节点还是中间节点）都禁止额外连接与问题逻辑无关的关系。判断标准：删掉这条关系后，回答问题的核心逻辑链是否仍然完整？如果完整，就是多余的，必须删掉。
-        八、禁止使用WITH子句，所有查询都必须在一条MATCH语句中进行。
-        九、禁止MATCH后的一个模式中内容超出一个三元组，必须写成多模式，每个模式之间用逗号隔开。
-        十、你的输出结果被你的输出结果被输入Cypher查询窗口后，返回的结果会被直接送往llm作为增强信息，RETURN中的字段有且只有查询语句中每个三元组（禁止只返回最后一跳，要让llm看到从【问题实体】到【最终实体】的完整多跳过程）的起点name属性、终点name属性、关系类型、起点aliases属性、终点aliases属性（禁止包含此外的节点属性），字段的命名要让llm能够理解使用。
-        -------------------
+        1.生成的Cypher语句会直接被送往查询器查询，禁止有任何语法错误，绝对禁止用任何代码块字符包裹，必须输出干净可运行的Cypher语句。
+        2.生成的Cypher语句要参考图谱的schema边界，禁止生成与图谱schema无关的查询语句。
+        3.生成的Cypher语句要根据图谱schema边界的说明判断关系的方向，严禁生成颠倒关系头尾的查询语句。
+        4.生成的Cypher语句必须是单跳查询，禁止生成多跳查询。
+        5.生成的Cypher语句的RETURN的返回内容为：关系类型、头节点名、头节点别名、尾节点名、尾节点别名。
         【示例】
-        用户问题：建在长江上项目的负责机构还有哪些项目？
-        逻辑链生成思路：
-        用户问题与图谱schema中的节点类型“项目”“河流”“机构”相关，关系类型与“建在某河上”“负责”相关，且“建在某河上”的关系起点是项目，终点是河流，“负责”的关系起点是机构，终点是项目。
-        所以逻辑链为：
-        项目1-建在某河上->长江，,某机构-负责->项目1，某机构-负责->项目2，三条关系，应返回三组三元组信息，因此MATCH后应有三个模式，三个模式靠共享变量连接。
-        根据逻辑链和图谱schema边界，生成Cypher查询语句：
-        MATCH (p1:HydraulicProject)-[r1:ON_RIVER]->(w:WaterSystem),
-        (o:Organization)-[r2:MANAGES]->(p1),
-        (o)-[r3:MANAGES]->(p2:HydraulicProject)
-        WHERE w.name="长江"
-        RETURN p1.name as r1_source,p1.aliases as r1_source_aliases,type(r1) as r1_type,w.name as r1_target,w.aliases as r1_target_aliases,
-        o.name as r2_source,o.aliases as r2_source_aliases,type(r2) as r2_type,p1.name as r2_target,p1.aliases as r2_target_aliases,
-        o.name as r3_source,o.aliases as r3_source_aliases,type(r3) as r3_type,p2.name as r3_target,p2.aliases as r3_target_aliases
+        问题：小浪底位于哪里？
+        分析：
+            schema中显示有”位于某地“关系与问题匹配，”位于某地”在边界说明中以地点为尾节点，
+            所以关系方向为”小浪底“ - “位于某地” -> “地点” 
+        生成的Cypher语句为：
+            MATCH (p)-[r:LOCATED_IN]->(l:Location)
+            WHERE p.name="小浪底"
+            RETURN p.name as r1_source, p.aliases as r1_source_aliases, 
+            type(r) as r1_type, l.name as r1_target, l.aliases as r1_target_aliases
+        -------------------
+        用户问题：
+        {query}
         -------------------
         图谱schema的节点类型边界：
         {build_nodetype()}
@@ -216,33 +205,11 @@ def graph_cypher(query):
         {full_text}
         ---------------
         【自查】生成Cypher后，必须按以下清单逐项自查，有问题立即修正：
-        1.【首要】是否查询了与用户问题所需逻辑链不需要的关系？逐一检查每个三元组：删掉它之后，回答问题的核心逻辑链还完整吗？完整就是多余的，必须删掉。
-        2.每个关系的源节点类型和目标节点类型是否与schema一致？
-        3.关系方向和问题的语义方向是否颠倒？
-        4.关系类型与首尾节点的节点类型是否与图谱schema的边界匹配？
-        5.生成的Cypher语句是否足以回答用户问题？跳数是否足够？
-        6.仔细思考用户的问题需要几跳才能回答，有没有漏掉中间环节？
-        7.生成的Cypher语句是否存在语法错误，是否确实是合法的Cypher查询语句，会不会与其他数据库查询语句混淆？会不会报错,会不会丢失字段？
+        1.关系类型与首尾节点的节点类型是否与图谱schema的边界匹配？
+        2.关系方向和问题的语义方向是否颠倒？
+        3.生成的内容是否存在语法错误，是否确实是干净合法的Cypher查询语句，会不会与其他数据库查询语句混淆？会不会报错,会不会丢失字段？
+        4.生成的Cypher语句是否是一个单跳查询？
         -------------------
-        【反例：修饰语错位导致的多余关系】
-        用户问题：管理小浪底的机构还管理了位于青海省的哪些项目？
-        【陷阱分析】问题里有"位于青海省"这个修饰语，但它修饰的是"还管理的项目"（目标项目p2）。不能因为问题里出现了地点修饰语，就给其他节点也顺手连上地点关系。
-        逻辑链应为：机构-管理->小浪底，机构-管理->其他项目，其他项目-位于->青海省，共3跳关系。小浪底本身的地点与回答问题无关。
-        错误写法（多了一条p1的地点关系）：
-        MATCH (o:Organization)-[r1:MANAGES]->(p1:HydraulicProject),
-        (p1)-[r2:LOCATED_IN]->(l1:Location),
-        (o)-[r3:MANAGES]->(p2:HydraulicProject),
-        (p2)-[r4:LOCATED_IN]->(l2:Location)
-        WHERE p1.name="小浪底" AND l2.name="青海省"
-        错误原因：删掉p1-LOCATED_IN->l1之后，"机构→小浪底，机构→其他项目，其他项目→青海省"的核心逻辑链依然完整，所以这条关系是多余的。
-        正确写法：
-        MATCH (o:Organization)-[r1:MANAGES]->(p1:HydraulicProject),
-        (o)-[r2:MANAGES]->(p2:HydraulicProject),
-        (p2)-[r3:LOCATED_IN]->(l:Location)
-        WHERE p1.name="小浪底" AND l.name="青海省"
-        RETURN o.name as r1_source,o.aliases as r1_source_aliases,type(r1) as r1_type,p1.name as r1_target,p1.aliases as r1_target_aliases,
-        o.name as r2_source,o.aliases as r2_source_aliases,type(r2) as r2_type,p2.name as r2_target,p2.aliases as r2_target_aliases,
-        p2.name as r3_source,p2.aliases as r3_source_aliases,type(r3) as r3_type,l.name as r3_target,l.aliases as r3_target_aliases
         """
     cypher_prompt=ChatPromptTemplate.from_messages([
         ("system",prompt),
@@ -257,6 +224,10 @@ print("[INFO] 测试Cypher查询语句生成...")
 # print(graph_cypher("长江上项目的负责机构还有哪些项目"))
 
 def fix_cypher(cypher):
+    cypher = re.sub(r'^\s*```(?:cypher)?\s*', '', cypher, flags=re.IGNORECASE)
+    cypher = re.sub(r'\s*```\s*$', '', cypher)
+    cypher = cypher.strip()
+
     cypher=re.sub(
         r'([a-zA-Z_]\w*)\.type\b',
         r'type(\1)',
@@ -265,6 +236,7 @@ def fix_cypher(cypher):
     return cypher
 
 def graph_r(query):
+    ensure_neo4j_indexes(neo4j_graph)
     cypher=fix_cypher(graph_cypher(query))
     print(f"[DEBUG] 修正后的Cypher查询语句：\n{cypher}")
     try:
