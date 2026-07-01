@@ -8,6 +8,9 @@ type ChatMessage = {
 
 const question = ref('')
 const loading = ref(false)
+// const sessionId = ref(localStorage.getItem('rag_session_id') || '')
+const sessionId = ref('')
+
 
 const buildingKb = ref(false)
 const kbStatus = ref<'idle' | 'success' | 'error'>('idle')
@@ -43,10 +46,16 @@ async function sendQuestion() {
       },
       body: JSON.stringify({
         question: text,
+        session_id: sessionId.value,
       }),
     })
 
     const data = await response.json()
+
+    if (data.session_id) {
+      sessionId.value = data.session_id
+      // localStorage.setItem('rag_session_id', data.session_id)
+    }
 
     messages.value.push({
       role: 'assistant',

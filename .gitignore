@@ -5,7 +5,6 @@ __pycache__/
 *.pyd
 *.spec
 
-
 # Jupyter Notebook 缓存
 .ipynb_checkpoints/
 
@@ -17,6 +16,9 @@ models/
 
 # 向量数据库
 chroma_db/
+
+# 会话记忆 (SQLite 运行时数据)
+backend/chat_memory.db
 
 # VS Code / IDE
 .vscode/
@@ -45,3 +47,6 @@ frontend/**/node_modules/
 frontend/**/dist/
 frontend/**/dist-ssr/
 
+# 无关文档
+1.md
+2.md

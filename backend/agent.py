@@ -29,7 +29,7 @@ tools=[kg_search,vector_search]
 llm_tools=llm.bind_tools(tools)
 
 system_prompt=f"""
-你是一个水利领域问答助手，可以使用两个工具
+你是一个水利领域问答助手，可以使用两个工具检索知识库信息，并通过知识库信息回答用户：
 1.kg_search：查知识图谱中的单跳关系（一次只能问一个简单关系问题）
 2.vector_search：查文档原文描述内容
 ----------------
@@ -67,8 +67,12 @@ system_prompt=f"""
 - 严禁一次性把多跳问题塞给 kg_search（它只能处理单跳）
 - 每次调用工具后，要根据返回结果判断下一步：够了就回答，不够就继续查
 - 若某次kg_search查询不到结果，可能是问题并没有拆分彻底，可以检查问题是否完全拆分，也可能是kg_search工具内置llm生成cypher的偶然性造成的，可以重试几次，反复失败则尝试使用vector_search工具对子问题进行查询,若仍失败则放弃。
+- 确保回答的每一句话都能在知识库里找到确切对应的内容，禁止添油加醋或凭空捏造，禁止胡乱联想改写知识库里的信息（如自作主张排序、张冠李戴、评价等），禁止改写、替换、归纳。
 - 确保查询到的信息确实足够充分回答问题再回答，若用户问题里的某个点无法根据查询到的信息确切回答，则直接声明，禁止捏造或假设。
-- 回答时，用自然流畅且简短的语言回答
+- 回答后附上信息来自的知识库内容（三元组、文档原文等）。
+- 生成回答后逐句自检：这句话完完全全是三元组或文档原文片段里直接清清楚楚表达出来的信息的原意思吗？如不是则是错误联想和错误推断应删除重写。
+- 不必追求回答内容的篇幅，即使知识库信息不够多也要严格对照回答，不要为了凑字数进行联想和胡编乱造。
+- 回答时，用自然流畅且简短的语言回答 
 """
 
 def call_model(state: MessagesState):
@@ -96,15 +100,14 @@ def ask_agent_with_context(messages):
         "messages":messages
     })
     final_message=result["messages"][-1]
-    return final_message.content,result["messages"]
+    return final_message.content
 
 
 def ask_agent(question:str)->str:
-    answer,_=ask_agent_with_context([
+    return ask_agent_with_context([
         {"role":"user","content":question}
     ])
-    return answer
-
+ 
 
 
 if __name__ == "__main__":
